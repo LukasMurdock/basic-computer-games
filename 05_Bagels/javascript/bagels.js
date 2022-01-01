@@ -3,158 +3,227 @@
 // Converted from BASIC to Javascript by Oscar Toledo G. (nanochess)
 //
 
-function print(str)
-{
-    document.getElementById("output").appendChild(document.createTextNode(str));
+// Game settings
+let numberDigitLength = 3;
+let allowedGuesses = 20;
+
+const lowercaseYesStrings = ['yes', 'y'];
+const lowercaseNoStrings = ['no', 'n'];
+const validInputStrings = [...lowercaseYesStrings, ...lowercaseNoStrings];
+
+// Determine if code is running in browser;
+// by default there is no window object in Node.js.
+const isRunningInBrowser = typeof window !== 'undefined';
+
+// Function to handle printing to browser DOM and Node console.
+function print(string) {
+    if (isRunningInBrowser) {
+        document
+            .getElementById('output')
+            .appendChild(document.createTextNode(string + '\n'));
+    } else {
+        console.log(string);
+    }
 }
 
-function input()
-{
-    var input_element;
-    var input_str;
-    
-    return new Promise(function (resolve) {
-                       input_element = document.createElement("INPUT");
-                       
-                       print("? ");
-                       input_element.setAttribute("type", "text");
-                       input_element.setAttribute("length", "50");
-                       document.getElementById("output").appendChild(input_element);
-                       input_element.focus();
-                       input_str = undefined;
-                       input_element.addEventListener("keydown", function (event) {
-                                                      if (event.keyCode == 13) {
-                                                      input_str = input_element.value;
-                                                      document.getElementById("output").removeChild(input_element);
-                                                      print(input_str);
-                                                      print("\n");
-                                                      resolve(input_str);
-                                                      }
-                                                      });
-                       });
+// Function to handle printing inline to browser DOM and Node console.
+function printInline(string) {
+    if (isRunningInBrowser) {
+        document
+            .getElementById('output')
+            .appendChild(document.createTextNode(string));
+    } else {
+        process.stdout.write(string);
+    }
 }
 
-function tab(space)
-{
-    var str = "";
-    while (space-- > 0)
-        str += " ";
-    return str;
+// Function to handle input from browser DOM and Node console.
+function input() {
+    if (isRunningInBrowser) {
+        // Accept input from the browser DOM input
+        return new Promise(function (resolve) {
+            let input_element = document.createElement('INPUT');
+            input_element.setAttribute('type', 'text');
+            input_element.setAttribute('length', '50');
+            document.getElementById('output').appendChild(input_element);
+            input_element.focus();
+            let input_str = undefined;
+            input_element.addEventListener('keydown', function (event) {
+                if (event.code === 'Enter') {
+                    input_str = input_element.value;
+                    document
+                        .getElementById('output')
+                        .removeChild(input_element);
+                    print(input_str);
+                    print('');
+                    resolve(input_str);
+                }
+            });
+        });
+    } else {
+        // Accept input from the command line in Node.js
+        // See: https://nodejs.dev/learn/accept-input-from-the-command-line-in-nodejs
+        return new Promise(function (resolve) {
+            const readline = require('readline').createInterface({
+                input: process.stdin,
+                output: process.stdout,
+            });
+            readline.question('', function (input) {
+                resolve(input);
+                readline.close();
+            });
+        });
+    }
 }
 
-print(tab(33) + "BAGELS\n");
-print(tab(15) + "CREATIVE COMPUTING  MORRISTOWN, NEW JERSEY\n");
+// Function to easily add spaces to a string
+function tab(numberOfSpaces) {
+    let spaces = ' '.repeat(numberOfSpaces);
+    return spaces;
+}
+
+print(tab(33) + 'BAGELS');
+print(tab(15) + 'CREATIVE COMPUTING  MORRISTOWN, NEW JERSEY');
 
 // *** Bagles number guessing game
 // *** Original source unknown but suspected to be
 // *** Lawrence Hall of Science, U.C. Berkeley
 
-a1 = [0,0,0,0];
-a = [0,0,0,0];
-b = [0,0,0,0];
+print('');
+print('');
+print('');
 
-y = 0;
-t = 255;
+async function playBagelGame() {
+    print('WOULD YOU LIKE THE RULES (YES OR NO)');
+    let wantsRulesResponse = await input();
 
-print("\n");
-print("\n");
-print("\n");
+    if (lowercaseYesStrings.includes(wantsRulesResponse.toLowerCase())) {
+        print('');
+        print('I AM THINKING OF A THREE-DIGIT NUMBER.  TRY TO GUESS');
+        print('MY NUMBER AND I WILL GIVE YOU CLUES AS FOLLOWS:');
+        print('   PICO   - ONE DIGIT CORRECT BUT IN THE WRONG POSITION');
+        print('   FERMI  - ONE DIGIT CORRECT AND IN THE RIGHT POSITION');
+        print('   BAGELS - NO DIGITS CORRECT');
+    }
+
+    // If you just wanted to generate a random three digit number;
+    // let numberToGuess = Math.floor(Math.random() * 900 + 100);
+
+    // However, we want to generate a three digit number with no repeating digits
+    let numberToGuess = [];
+    while (numberToGuess.length < numberDigitLength) {
+        let randomNumber = Math.floor(Math.random() * 10);
+        if (numberToGuess.indexOf(randomNumber) === -1) {
+            numberToGuess.push(randomNumber);
+        }
+    }
+
+    print('');
+    print('O.K.  I HAVE A NUMBER IN MIND.');
+
+    let guesses = 0;
+    let response;
+    let gameWon = false;
+
+    for (let guesses = 0; guesses < allowedGuesses; guesses++) {
+        guesses > 0 && print('GUESS #' + guesses);
+        let validInput = false;
+
+        // Repeat until a valid input is given
+        while (!validInput) {
+            guesses === 0 && print('TRY GUESSING A THREE-DIGIT NUMBER.\n');
+            response = await input();
+            let guessMeetsDigitLength =
+                String(response).length === numberDigitLength;
+            let guessIsValidNumber = !Number.isNaN(response);
+            let guessHasRepeatNumbers = response
+                .split('')
+                .some(function (element, index, array) {
+                    return array.lastIndexOf(element) != index;
+                });
+
+            if (!guessMeetsDigitLength) {
+                print('TRY GUESSING A THREE-DIGIT NUMBER.\n');
+            } else if (guessHasRepeatNumbers) {
+                print(
+                    'OH, I FORGOT TO TELL YOU THAT THE NUMBER I HAVE IN MIND'
+                );
+                print('HAS NO TWO DIGITS THE SAME.');
+            } else if (!guessIsValidNumber) {
+                print('WHAT?');
+            } else {
+                validInput = true;
+            }
+        }
+
+        // If response matches number to guess, the game is won! Return game data.
+        if (response === numberToGuess.join('')) {
+            gameWon = true;
+            return { guesses, response, gameWon, numberToGuess };
+        }
+
+        // Split response number into an array of digits and cast from string to number.
+        let responseArray = response.split('').map(Number);
+
+        // Boolean test if response includes no digits from the numberToGuess
+        let noDigitsCorrect = !responseArray.some(function (element) {
+            return numberToGuess.includes(element);
+        });
+
+        if (noDigitsCorrect) {
+            print('BAGELS');
+        }
+
+        // Check each response digit
+        responseArray.forEach((element, index) => {
+            let rightIndex = element === numberToGuess[index];
+            if (rightIndex) {
+                // If response digit matches numberToGuess index value
+                printInline('FERMI ');
+            } else if (numberToGuess.includes(element)) {
+                // If response digit in included in numberToGuess at different index
+                printInline('PICO ');
+            }
+        });
+        print('');
+    }
+    // If they use all available guesses, the game is lost. Return game data.
+    return { guesses, response, gameWon, numberToGuess };
+}
 
 // Main program
-async function main()
-{
-    while (1) {
-        print("WOULD YOU LIKE THE RULES (YES OR NO)");
-        str = await input();
-        if (str.substr(0, 1) != "N") {
-            print("\n");
-            print("I AM THINKING OF A THREE-DIGIT NUMBER.  TRY TO GUESS\n");
-            print("MY NUMBER AND I WILL GIVE YOU CLUES AS FOLLOWS:\n");
-            print("   PICO   - ONE DIGIT CORRECT BUT IN THE WRONG POSITION\n");
-            print("   FERMI  - ONE DIGIT CORRECT AND IN THE RIGHT POSITION\n");
-            print("   BAGELS - NO DIGITS CORRECT\n");
-        }
-        for (i = 1; i <= 3; i++) {
-            do {
-                a[i] = Math.floor(Math.random() * 10);
-                for (j = i - 1; j >= 1; j--) {
-                    if (a[i] == a[j])
-                        break;
-                }
-            } while (j >= 1) ;
-        }
-        print("\n");
-        print("O.K.  I HAVE A NUMBER IN MIND.\n");
-        for (i = 1; i <= 20; i++) {
-            while (1) {
-                print("GUESS #" + i);
-                str = await input();
-                if (str.length != 3) {
-                    print("TRY GUESSING A THREE-DIGIT NUMBER.\n");
-                    continue;
-                }
-                for (z = 1; z <= 3; z++)
-                    a1[z] = str.charCodeAt(z - 1);
-                for (j = 1; j <= 3; j++) {
-                    if (a1[j] < 48 || a1[j] > 57)
-                        break;
-                    b[j] = a1[j] - 48;
-                }
-                if (j <= 3) {
-                    print("WHAT?");
-                    continue;
-                }
-                if (b[1] == b[2] || b[2] == b[3] || b[3] == b[1]) {
-                    print("OH, I FORGOT TO TELL YOU THAT THE NUMBER I HAVE IN MIND\n");
-                    print("HAS NO TWO DIGITS THE SAME.\n");
-                    continue;
-                }
-                break;
-            }
-            c = 0;
-            d = 0;
-            for (j = 1; j <= 2; j++) {
-                if (a[j] == b[j + 1])
-                    c++;
-                if (a[j + 1] == b[j])
-                    c++;
-            }
-            if (a[1] == b[3])
-                c++;
-            if (a[3] == b[1])
-                c++;
-            for (j = 1; j <= 3; j++) {
-                if (a[j] == b[j])
-                    d++;
-            }
-            if (d == 3)
-                break;
-            for (j = 0; j < c; j++)
-                print("PICO ");
-            for (j = 0; j < d; j++)
-                print("FERMI ");
-            if (c + d == 0)
-                print("BAGELS");
-            print("\n");
-        }
-        if (i <= 20) {
-            print("YOU GOT IT!!!\n");
-            print("\n");
+async function main() {
+    let wantsToPlay = true;
+    let points = 0;
+
+    while (wantsToPlay) {
+        let { gameWon, numberToGuess } = await playBagelGame();
+
+        if (gameWon) {
+            print('YOU GOT IT!!!');
+            print('');
+            points++;
         } else {
-            print("OH WELL.\n");
-            print("THAT'S A TWENTY GUESS.  MY NUMBER WAS " + a[1] + a[2] + a[3]);
+            print('OH WELL.');
+            print(
+                "THAT'S A TWENTY GUESS.  MY NUMBER WAS " +
+                    numberToGuess.join('')
+            );
         }
-        y++;
-        print("PLAY AGAIN (YES OR NO)");
-        str = await input();
-        if (str.substr(0, 1) != "Y")
-            break;
+
+        print('PLAY AGAIN (YES OR NO)');
+        let wantsToPlayAgainResponse = await input();
+
+        wantsToPlay = lowercaseYesStrings.includes(
+            wantsToPlayAgainResponse.toLowerCase()
+        );
+
+        if (points === 0) {
+            print('HOPE YOU HAD FUN.  BYE.');
+        } else {
+            print('\nA ' + points + ' POINT BAGELS BUFF!!\n');
+        }
     }
-    if (y == 0)
-        print("HOPE YOU HAD FUN.  BYE.\n");
-    else
-        print("\nA " + y + " POINT BAGELS BUFF!!\n");
-    
 }
 
 main();
