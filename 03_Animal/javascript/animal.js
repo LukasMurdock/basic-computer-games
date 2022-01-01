@@ -3,159 +3,187 @@
 // Converted from BASIC to Javascript by Oscar Toledo G. (nanochess)
 //
 
-function print(str)
-{
-    document.getElementById("output").appendChild(document.createTextNode(str));
+const lowercaseYesStrings = ['yes', 'y'];
+const lowercaseNoStrings = ['no', 'n'];
+const validInputStrings = [...lowercaseYesStrings, ...lowercaseNoStrings];
+
+// Determine if code is running in browser;
+// by default there is no window object in Node.js.
+const isRunningInBrowser = typeof window !== 'undefined';
+
+// Function to handle printing to browser DOM and Node console.
+function print(string) {
+    if (isRunningInBrowser) {
+        document
+            .getElementById('output')
+            .appendChild(document.createTextNode(string + '\n'));
+    } else {
+        console.log(string);
+    }
 }
 
-function input()
-{
-    var input_element;
-    var input_str;
-    
-    return new Promise(function (resolve) {
-                       input_element = document.createElement("INPUT");
-                       
-                       print("? ");
-                       input_element.setAttribute("type", "text");
-                       input_element.setAttribute("length", "50");
-                       document.getElementById("output").appendChild(input_element);
-                       input_element.focus();
-                       input_str = undefined;
-                       input_element.addEventListener("keydown", function (event) {
-                                                      if (event.keyCode == 13) {
-                                                        input_str = input_element.value;
-                                                        document.getElementById("output").removeChild(input_element);
-                                                        print(input_str);
-                                                        print("\n");
-                                                        resolve(input_str);
-                                                      }
-                                                      });
-                       });
+// Function to handle printing inline to browser DOM and Node console.
+function printInline(string) {
+    if (isRunningInBrowser) {
+        document
+            .getElementById('output')
+            .appendChild(document.createTextNode(string));
+    } else {
+        process.stdout.write(string);
+    }
 }
 
-function tab(space)
-{
-    var str = "";
-    while (space-- > 0)
-        str += " ";
-    return str;
+// Function to handle input from browser DOM and Node console.
+function input() {
+    if (isRunningInBrowser) {
+        // Accept input from the browser DOM input
+        return new Promise(function (resolve) {
+            let input_element = document.createElement('INPUT');
+            input_element.setAttribute('type', 'text');
+            input_element.setAttribute('length', '50');
+            document.getElementById('output').appendChild(input_element);
+            input_element.focus();
+            let input_str = undefined;
+            input_element.addEventListener('keydown', function (event) {
+                if (event.code === 'Enter') {
+                    input_str = input_element.value;
+                    document
+                        .getElementById('output')
+                        .removeChild(input_element);
+                    print(input_str);
+                    print('');
+                    resolve(input_str);
+                }
+            });
+        });
+    } else {
+        // Accept input from the command line in Node.js
+        // See: https://nodejs.dev/learn/accept-input-from-the-command-line-in-nodejs
+        return new Promise(function (resolve) {
+            const readline = require('readline').createInterface({
+                input: process.stdin,
+                output: process.stdout,
+            });
+            readline.question('', function (input) {
+                resolve(input);
+                readline.close();
+            });
+        });
+    }
 }
 
-print(tab(32) + "ANIMAL\n");
-print(tab(15) + "CREATIVE COMPUTING  MORRISTOWN, NEW JERSEY\n");
-print("\n");
-print("\n");
-print("\n");
-print("PLAY 'GUESS THE ANIMAL'\n");
-print("\n");
-print("THINK OF AN ANIMAL AND THE COMPUTER WILL TRY TO GUESS IT.\n");
-print("\n");
+// Function to easily add spaces to a string
+function tab(numberOfSpaces) {
+    let spaces = ' '.repeat(numberOfSpaces);
+    return spaces;
+}
 
-var k;
-var n;
-var str;
-var q;
-var z;
-var c;
-var t;
+print(tab(32) + 'ANIMAL');
+print(tab(15) + 'CREATIVE COMPUTING  MORRISTOWN, NEW JERSEY');
+print('');
+print('');
+print('');
+print("PLAY 'GUESS THE ANIMAL'");
+print('');
+print('THINK OF AN ANIMAL AND THE COMPUTER WILL TRY TO GUESS IT.');
+print('');
 
-var animals = [
-               "\\QDOES IT SWIM\\Y1\\N2\\",
-               "\\AFISH",
-               "\\ABIRD",
-               ];
-
-n = animals.length;
-
-function show_animals() {
-    var x;
-    
-    print("\n");
-    print("ANIMALS I ALREADY KNOW ARE:\n");
-    str = "";
-    x = 0;
-    for (var i = 0; i < n; i++) {
-        if (animals[i].substr(0, 2) == "\\A") {
-            while (str.length < 15 * x)
-                str += " ";
-            for (var z = 2; z < animals[i].length; z++) {
-                if (animals[i][z] == "\\")
-                    break;
-                str += animals[i][z];
-            }
-            x++;
-            if (x == 4) {
-                x = 0;
-                print(str + "\n");
-                str = "";
-            }
+// Function to handle animal input
+async function inputAnimal() {
+    let validInput = false;
+    let animalInput;
+    while (!validInput) {
+        print('ARE YOU THINKING OF AN ANIMAL');
+        animalInput = await input();
+        if (animalInput.toLowerCase() === 'list') {
+            print('');
+            print('ANIMALS I ALREADY KNOW ARE:');
+            print(animals.join(', '));
+        } else if (lowercaseYesStrings.includes(animalInput.toLowerCase())) {
+            validInput = true;
         }
     }
-    if (str != "")
-        print(str + "\n");
+    return animalInput;
 }
 
+// Game starting settings
+let questionsAndAnimals = [
+    { question: 'DOES IT SWIM', fish: true, bird: false },
+    { question: 'DOES IT FLY', fish: false, bird: true },
+];
+let animals = ['FISH', 'BIRD'];
+
 // Main control section
-async function main()
-{
-    while (1) {
-        while (1) {
-            print("ARE YOU THINKING OF AN ANIMAL");
-            str = await input();
-            if (str == "LIST")
-                show_animals();
-            if (str[0] == "Y")
-                break;
-        }
-        
-        k = 0;
-        do {
-            // Subroutine to print questions
-            q = animals[k];
-            while (1) {
-                str = "";
-                for (z = 2; z < q.length; z++) {
-                    if (q[z] == "\\")
-                        break;
-                    str += q[z];
-                }	
-                print(str);
-                c = await input();
-                if (c[0] == "Y" || c[0] == "N")
-                    break;
+async function main() {
+    while (true) {
+        let animalInput = await inputAnimal();
+        let animalMatches = {};
+
+        // For every question
+        for (let questionAndAnimal of questionsAndAnimals) {
+            let validInput;
+            let response;
+
+            // Wait for a valid answer
+            while (!validInput) {
+                print(questionAndAnimal.question);
+                let answer = await input();
+                validInput = validInputStrings.includes(answer.toLowerCase());
+                response = lowercaseYesStrings.includes(answer.toLowerCase());
             }
-            t = "\\" + c[0];
-            x = q.indexOf(t);
-            k = parseInt(q.substr(x + 2));	
-        } while (animals[k].substr(0,2) == "\\Q") ;
-        
-        print("IS IT A " + animals[k].substr(2));
-        a = await input();
-        if (a[0] == "Y") {
-            print("WHY NOT TRY ANOTHER ANIMAL?\n");
-            continue;
+
+            // If response matches animal values, increment animal in animalMatches.
+            Object.keys(questionAndAnimal).forEach((key) => {
+                if (questionAndAnimal[key] === response) {
+                    animalMatches[key] = animalMatches[key]
+                        ? animalMatches[key]++
+                        : 1;
+                }
+            });
         }
-        print("THE ANIMAL YOU WERE THINKING OF WAS A ");
-        v = await input();
-        print("PLEASE TYPE IN A QUESTION THAT WOULD DISTINGUISH A\n");
-        print(v + " FROM A " + animals[k].substr(2) + "\n");
-        x = await input();
-        while (1) {
-            print("FOR A " + v + " THE ANSWER WOULD BE ");
-            a = await input();
-            a = a.substr(0, 1);
-            if (a == "Y" || a == "N")
-                break;
+
+        // Guess animal match by selecting the animal in animalMatches with the highest increment value.
+        let guess = Object.keys(animalMatches)
+            .reduce((a, b) => (animalMatches[a] > animalMatches[b] ? a : b))
+            .toUpperCase();
+
+        print('IS IT A ' + guess);
+
+        let isCorrectGuess = lowercaseYesStrings.includes(await input());
+        if (isCorrectGuess) {
+            print('WHY NOT TRY ANOTHER ANIMAL?');
+        } else {
+            print('THE ANIMAL YOU WERE THINKING OF WAS A ');
+            let newAnimal = await input();
+            animals.push(newAnimal);
+            print(
+                `PLEASE TYPE IN A QUESTION THAT WOULD DISTINGUISH A ${newAnimal} FROM A ${guess} `
+            );
+            let newQuestion = await input();
+            let newAnimalAnswers = {};
+            // Set the new question values for each animal
+            for (let animal of animals) {
+                let response;
+                let validInput;
+                while (!validInput) {
+                    print(`FOR A ${animal} THE ANSWER WOULD BE `);
+                    let answer = await input();
+                    validInput = validInputStrings.includes(
+                        answer.toLowerCase()
+                    );
+                    response = lowercaseYesStrings.includes(
+                        answer.toLowerCase()
+                    );
+                }
+
+                newAnimalAnswers[animal.toLowerCase()] = response;
+            }
+            questionsAndAnimals.push({
+                question: String(newQuestion),
+                ...newAnimalAnswers,
+            });
+            console.log(questionsAndAnimals);
         }
-        if (a == "Y")
-            b = "N";
-        if (a == "N")
-            b = "Y";
-        z1 = animals.length;
-        animals[z1] = animals[k];
-        animals[z1 + 1] = "\\A" + v;
-        animals[k] = "\\Q" + x + "\\" + a + (z1 + 1) + "\\" + b + z1 + "\\";
     }
 }
 
